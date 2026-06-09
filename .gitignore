@@ -1,0 +1,12 @@
+chats/
+*.json
+pin.txt
+prompt.txt
+model.txt
+memory.json
+favorites.json
+templates_data.json
+__pycache__/
+*.pyc
+.env
+api_key.txt
