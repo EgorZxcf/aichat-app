@@ -15,11 +15,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Build APK
-      env:
-        BUILDOZER_WARN_ON_ROOT: "0"
       run: |
-        echo "[buildozer]" >> buildozer.spec
-        echo "warn_on_root = 0" >> buildozer.spec
         yes | buildozer android debug
 
     - name: Upload APK
