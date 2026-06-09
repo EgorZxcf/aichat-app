@@ -1,7 +1,7 @@
 [app]
-title = AI Chat
-package.name = aichat
-package.domain = org.aichat
+title = NeuroChat
+package.name = neurochat
+package.domain = org.neurochat
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,html,css,js
 version = 1.0
