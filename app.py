@@ -522,7 +522,7 @@ def get_apikey():
 @app.route("/apikey", methods=["POST"])
 def set_apikey():
     key = request.json.get("key", "").strip()
-    if not key.startswith("""") or len(key) < 20:
+    if not key.startswith("gsk_") or len(key) < 20:
         return jsonify({"error": "Неверный формат ключа Groq"}), 400
     save_api_key(key)
     return jsonify({"status": "ok"})
