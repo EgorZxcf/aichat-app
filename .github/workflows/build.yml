@@ -16,21 +16,18 @@ jobs:
 
     - name: Build APK
       run: |
-        yes | buildozer android debug 2>&1 | tee /tmp/build.log; \
-        grep -i "error\|exception\|failed\|cannot\|no such" /tmp/build.log | grep -v "warning\|deprecated" | tail -30
+        yes | buildozer android debug
+        echo "=== Finding APK files ==="
+        find / -name "*.apk" 2>/dev/null
+        echo "=== bin directory ==="
+        ls -la bin/ 2>/dev/null || echo "No bin dir"
 
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: neurochat-apk
-        path: bin/*.apk
+        path: |
+          bin/*.apk
+          **/*.apk
+        if-no-files-found: warn
         retention-days: 30
-
-    - name: Upload build log
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log
-        path: /tmp/build.log
-        retention-days: 7
