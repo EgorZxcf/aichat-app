@@ -38,6 +38,11 @@ class NeuroChat(App):
                 settings.setAllowFileAccess(True)
                 settings.setMixedContentMode(0)
                 wv.setWebViewClient(WebViewClient())
+                # Разрешаем cleartext программно
+                StrictMode = autoclass("android.os.StrictMode")
+                StrictMode.setThreadPolicy(
+                    autoclass("android.os.StrictMode$ThreadPolicy$Builder")().permitAll().build()
+                )
                 wv.loadUrl("http://127.0.0.1:5000")
                 activity.setContentView(wv)
 
