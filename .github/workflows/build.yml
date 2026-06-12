@@ -21,7 +21,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11.9"
+        python-version: '3.11.9'
 
     - name: Install dependencies
       run: |
@@ -72,20 +72,21 @@ jobs:
     - name: Build APK
       run: |
         yes | buildozer android debug 2>&1 | tee /tmp/build.log
-        find . -name "*.apk" 2>/dev/null
+        echo "=== Searching APK ==="
+        find / -name "*.apk" -not -path "*/android-sdk/*" 2>/dev/null || echo "No APK found"
+        echo "=== Current dir ==="
+        ls -la
+        echo "=== bin dir ==="
+        ls -la bin/ 2>/dev/null || echo "No bin dir"
+        echo "=== buildozer dir ==="
+        find .buildozer -name "*.apk" 2>/dev/null || echo "No APK in buildozer"
 
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: neurochat-apk
-        path: bin/*.apk
+        path: |
+          bin/*.apk
+          .buildozer/**/*.apk
+        if-no-files-found: warn
         retention-days: 30
-
-    - name: Upload log on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log
-        path: /tmp/build.log
-        retention-days: 7
