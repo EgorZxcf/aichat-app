@@ -5,12 +5,12 @@ package.domain = org.neurochat
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,html,css,js,xml
 version = 1.0
-requirements = python3,kivy==2.3.0,flask,requests
+requirements = python3==3.11.0,kivy==2.3.0,flask,requests
 orientation = portrait
 android.permissions = INTERNET
 android.api = 33
 android.minapi = 21
-android.ndk = 28c
+android.ndk = 25b
 android.archs = arm64-v8a
 android.allow_backup = True
 android.network_security_config = res/xml/network_security_config.xml
