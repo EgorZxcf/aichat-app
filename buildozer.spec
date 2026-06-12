@@ -15,6 +15,7 @@ android.archs = arm64-v8a
 android.allow_backup = True
 android.network_security_config = res/xml/network_security_config.xml
 fullscreen = 0
+android.meta_data = android:usesCleartextTraffic=true
 
 p4a.branch = master
 
