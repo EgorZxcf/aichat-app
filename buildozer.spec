@@ -5,7 +5,7 @@ package.domain = org.neurochat
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,html,css,js,xml
 version = 1.0
-requirements = python3==3.11.0,kivy==2.3.0,flask,requests
+requirements = python3,kivy==2.3.0,flask,requests
 orientation = portrait
 android.permissions = INTERNET
 android.api = 33
