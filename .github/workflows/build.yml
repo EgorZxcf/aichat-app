@@ -58,6 +58,7 @@ jobs:
 
     - name: Build APK
       run: |
+        pip install --upgrade buildozer cython==0.29.33
         yes | buildozer android debug 2>&1 | tee /tmp/build.log
         echo "=== Searching APK ==="
         find / -name "*.apk" -not -path "*/android-sdk/*" 2>/dev/null || echo "No APK found"
