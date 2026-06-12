@@ -28,21 +28,26 @@ class NeuroChat(App):
                 PythonActivity = autoclass("org.kivy.android.PythonActivity")
                 WebView = autoclass("android.webkit.WebView")
                 WebViewClient = autoclass("android.webkit.WebViewClient")
-                WebSettings = autoclass("android.webkit.WebSettings")
-
                 activity = PythonActivity.mActivity
+
+                # Разрешаем cleartext через ApplicationInfo
+                try:
+                    context = activity.getApplicationContext()
+                    appInfo = context.getApplicationInfo()
+                    appInfo.flags = appInfo.flags | 0x08000000  # FLAG_USES_CLEARTEXT_TRAFFIC
+                except:
+                    pass
+
                 wv = WebView(activity)
                 settings = wv.getSettings()
                 settings.setJavaScriptEnabled(True)
                 settings.setDomStorageEnabled(True)
                 settings.setAllowFileAccess(True)
                 settings.setMixedContentMode(0)
+                settings.setAllowContentAccess(True)
+
+                # Обходим проверку cleartext через кастомный клиент
                 wv.setWebViewClient(WebViewClient())
-                # Разрешаем cleartext программно
-                StrictMode = autoclass("android.os.StrictMode")
-                StrictMode.setThreadPolicy(
-                    autoclass("android.os.StrictMode$ThreadPolicy$Builder")().permitAll().build()
-                )
                 wv.loadUrl("http://127.0.0.1:5000")
                 activity.setContentView(wv)
 
