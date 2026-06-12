@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="{{ args.package }}"
+    android:versionCode="{{ args.numeric_version }}"
+    android:versionName="{{ args.version }}">
+
+    <uses-sdk android:minSdkVersion="{{ args.min_sdk_version }}" android:targetSdkVersion="{{ args.android_api }}" />
+
+    {% for perm in args.permissions %}
+    <uses-permission android:name="{{ perm }}" />
+    {% endfor %}
+
+    <application
+        android:label="{{ args.title }}"
+        android:icon="@drawable/icon"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="{{ 'true' if args.allow_backup else 'false' }}">
+
+        <activity
+            android:name="org.kivy.android.PythonActivity"
+            android:label="{{ args.title }}"
+            android:screenOrientation="{{ args.orientation }}"
+            android:configChanges="keyboardHidden|orientation|screenSize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
