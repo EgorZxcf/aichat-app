@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y git zip unzip wget autoconf libtool pkg-config zlib1g-dev libncurses5-dev libffi-dev libssl-dev cmake build-essential
+        sudo apt-get install -y git zip unzip wget autoconf libtool pkg-config zlib1g-dev libncurses5-dev libffi-dev libssl-dev cmake build-essential apksigner
         pip install --upgrade pip
         pip install buildozer cython==3.0.11
 
@@ -53,9 +53,42 @@ jobs:
     - name: Build APK
       run: |
         yes | buildozer android debug 2>&1 | tee /tmp/build.log
-        echo "=== Check manifest in APK ==="
-        find . -name "*.apk" | head -3
         ls -la bin/ 2>/dev/null || echo "No bin dir"
+
+    - name: Patch APK - enable cleartext
+      run: |
+        APK=$(find bin -name "*.apk" | head -1)
+        echo "APK: $APK"
+        # Распаковываем APK
+        mkdir -p apk_patch
+        cp "$APK" apk_patch/original.apk
+        cd apk_patch
+        unzip -q original.apk
+        # Декодируем манифест
+        python3 - << 'PYEOF'
+        import subprocess, os, sys
+        # Используем aapt2 для просмотра
+        result = subprocess.run(['aapt2', 'dump', 'xmltree', '--file', 'AndroidManifest.xml', 'original.apk'], capture_output=True, text=True)
+        print(result.stdout[:2000])
+        PYEOF
+        cd ..
+        # Патчим через gradlew
+        DIST=.buildozer/android/platform/build-arm64-v8a/dists/neurochat
+        MANIFEST=$DIST/src/main/AndroidManifest.xml
+        echo "=== Before patch ==="
+        grep -i "cleartext\|application" "$MANIFEST" | head -5
+        # Патчим
+        sed -i 's|android:allowBackup|android:usesCleartextTraffic="true" android:allowBackup|g' "$MANIFEST"
+        echo "=== After patch ==="
+        grep -i "cleartext\|application" "$MANIFEST" | head -5
+        # Пересобираем
+        cd $DIST
+        ./gradlew assembleDebug 2>&1 | tail -10
+        cd $GITHUB_WORKSPACE
+        # Копируем новый APK
+        find .buildozer -name "*.apk" -path "*/outputs/apk/*" -exec cp {} bin/ \;
+        echo "=== Final bin ==="
+        ls -la bin/
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
