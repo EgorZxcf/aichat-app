@@ -81,9 +81,10 @@ jobs:
         sed -i 's|android:allowBackup|android:usesCleartextTraffic="true" android:allowBackup|g' "$MANIFEST"
         echo "=== After patch ==="
         grep -i "cleartext\|application" "$MANIFEST" | head -5
-        # Пересобираем
+        # Пересобираем принудительно
         cd $DIST
-        ./gradlew assembleDebug 2>&1 | tail -10
+        touch src/main/AndroidManifest.xml
+        ./gradlew assembleDebug --rerun-tasks 2>&1 | tail -20
         cd $GITHUB_WORKSPACE
         # Копируем новый APK
         find .buildozer -name "*.apk" -path "*/outputs/apk/*" -exec cp {} bin/ \;
