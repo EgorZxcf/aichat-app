@@ -192,6 +192,25 @@
           });
         };
         footer.appendChild(copyBtn);
+      if (role === "assistant") {
+        const ttsBtn = document.createElement("button");
+        ttsBtn.textContent = "🔊";
+        ttsBtn.title = "Озвучить";
+        ttsBtn.style.cssText = "background:none;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:2px 4px";
+        ttsBtn.onclick = async () => {
+          ttsBtn.textContent = "⏳";
+          try {
+            const r = await fetch("/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:content.replace(/[#*`]/g,"").substring(0,500)})});
+            const d = await r.json();
+            if (d.audio) {
+              const audio = new Audio("data:audio/mp3;base64,"+d.audio);
+              audio.play();
+              ttsBtn.textContent = "🔊";
+            } else { ttsBtn.textContent = "❌"; }
+          } catch(e) { ttsBtn.textContent = "❌"; }
+        };
+        footer.appendChild(ttsBtn);
+      }
         if (modelName) {
           const modelEl = document.createElement("div");
           modelEl.className = "msg-model";
@@ -514,6 +533,25 @@ async function sendStream() {
             };
             footer.appendChild(time);
             footer.appendChild(copyBtn);
+      if (role === "assistant") {
+        const ttsBtn = document.createElement("button");
+        ttsBtn.textContent = "🔊";
+        ttsBtn.title = "Озвучить";
+        ttsBtn.style.cssText = "background:none;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:2px 4px";
+        ttsBtn.onclick = async () => {
+          ttsBtn.textContent = "⏳";
+          try {
+            const r = await fetch("/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:content.replace(/[#*`]/g,"").substring(0,500)})});
+            const d = await r.json();
+            if (d.audio) {
+              const audio = new Audio("data:audio/mp3;base64,"+d.audio);
+              audio.play();
+              ttsBtn.textContent = "🔊";
+            } else { ttsBtn.textContent = "❌"; }
+          } catch(e) { ttsBtn.textContent = "❌"; }
+        };
+        footer.appendChild(ttsBtn);
+      }
             wrap.appendChild(footer);
             if (data.title) {
               currentTitle.textContent = data.title;
@@ -855,6 +893,25 @@ window.sendStream = async function() {
             };
             footer.appendChild(time);
             footer.appendChild(copyBtn);
+      if (role === "assistant") {
+        const ttsBtn = document.createElement("button");
+        ttsBtn.textContent = "🔊";
+        ttsBtn.title = "Озвучить";
+        ttsBtn.style.cssText = "background:none;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:2px 4px";
+        ttsBtn.onclick = async () => {
+          ttsBtn.textContent = "⏳";
+          try {
+            const r = await fetch("/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:content.replace(/[#*`]/g,"").substring(0,500)})});
+            const d = await r.json();
+            if (d.audio) {
+              const audio = new Audio("data:audio/mp3;base64,"+d.audio);
+              audio.play();
+              ttsBtn.textContent = "🔊";
+            } else { ttsBtn.textContent = "❌"; }
+          } catch(e) { ttsBtn.textContent = "❌"; }
+        };
+        footer.appendChild(ttsBtn);
+      }
             wrap.appendChild(footer);
             if (data.title) { currentTitle.textContent = data.title; loadChats(); }
           }
@@ -1085,6 +1142,8 @@ const COMMANDS = [
   { name: "/считай",    desc: "Калькулятор",              template: "/считай " },
   { name: "/wiki",      desc: "Поиск в Wikipedia",        template: "/wiki " },
   { name: "/время",     desc: "Текущее время",            template: "/время" },
+  { name: "/поиск",    desc: "Поиск в интернете",        template: "/поиск " },
+  { name: "/напомни",  desc: "Создать напоминание",      template: "/напомни в 18:00 " },
 ];
 
 let cmdIndex = -1;

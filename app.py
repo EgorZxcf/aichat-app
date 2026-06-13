@@ -618,8 +618,15 @@ def plugin_calc(expr):
         return "❌ Ошибка вычисления"
 
 def plugin_weather(city):
+    city = city.strip()
     try:
-        r = requests.get(f"https://wttr.in/{city}?format=3&lang=ru", timeout=5)
+        r = requests.get(f"https://wttr.in/{requests.utils.quote(city)}?format=j1", timeout=8)
+        data = r.json()
+        cur = data["current_condition"][0]
+        temp = cur["temp_C"]
+        feels = cur["FeelsLikeC"]
+        desc = cur["lang_ru"][0]["value"] if cur.get("lang_ru") else cur["weatherDesc"][0]["value"]
+        return f"🌤 Погода в {city}:\n🌡 Температура: {temp}°C\n🤔 Ощущается: {feels}°C\n☁️ {desc}"
         return f"🌤 {r.text.strip()}"
     except:
         return "❌ Не удалось получить погоду"
@@ -667,6 +674,8 @@ def check_plugins(message):
         return plugin_calc(expr)
     if msg.startswith("/wiki ") or msg.startswith("/вики "):
         return plugin_wiki(message.split(" ",1)[1])
+    if msg.startswith("/поиск ") or msg.startswith("/search "):
+        return None  # обрабатывается отдельно
     if msg in ["/время", "/time"]:
         return plugin_time()
     return None
@@ -678,3 +687,131 @@ def run_plugin():
     if result:
         return jsonify({"result": result})
     return jsonify({"result": None})
+
+# ====== ВЕБ-ПОИСК ======
+@app.route("/websearch", methods=["POST"])
+def web_search():
+    query = request.json.get("query", "").strip()
+    if not query:
+        return jsonify({"error": "Пустой запрос"}), 400
+    try:
+        # DuckDuckGo instant answer API
+        r = requests.get(
+            "https://api.duckduckgo.com/",
+            params={"q": query, "format": "json", "no_html": 1, "skip_disambig": 1},
+            timeout=8
+        )
+        data = r.json()
+        results = []
+        
+        # Abstract (основной ответ)
+        if data.get("Abstract"):
+            results.append(f"📖 **{data.get('Heading','')}**\n{data['Abstract']}")
+        
+        # Related topics
+        for topic in data.get("RelatedTopics", [])[:4]:
+            if isinstance(topic, dict) and topic.get("Text"):
+                results.append(f"• {topic['Text'][:200]}")
+        
+        # Answer (прямой ответ)
+        if data.get("Answer"):
+            results.insert(0, f"✅ **{data['Answer']}**")
+        
+        if not results:
+            # Fallback - поиск через DDG HTML
+            r2 = requests.get(
+                f"https://html.duckduckgo.com/html/?q={requests.utils.quote(query)}",
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=8
+            )
+            import re
+            snippets = re.findall(r'class="result__snippet">(.*?)</a>', r2.text)
+            titles = re.findall(r'class="result__title".*?>(.*?)</a>', r2.text)
+            for i, (t, s) in enumerate(zip(titles[:3], snippets[:3])):
+                clean_t = re.sub(r'<.*?>', '', t).strip()
+                clean_s = re.sub(r'<.*?>', '', s).strip()
+                if clean_t and clean_s:
+                    results.append(f"**{clean_t}**\n{clean_s}")
+        
+        if results:
+            text = "\n\n".join(results[:5])
+            return jsonify({"result": f"🌐 Результаты поиска по запросу «{query}»:\n\n{text}"})
+        return jsonify({"result": "❌ Ничего не найдено"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ====== TTS (озвучка) ======
+@app.route("/tts", methods=["POST"])
+def text_to_speech():
+    text = request.json.get("text", "").strip()[:1000]
+    if not text:
+        return jsonify({"error": "Пустой текст"}), 400
+    try:
+        # Groq TTS
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/audio/speech",
+            headers={
+                "Authorization": f"Bearer {get_groq_key()}",
+                "Content-Type": "application/json"
+            },
+            json={"model": "playai-tts", "input": text, "voice": "Fritz-PlayAI", "response_format": "mp3"},
+            timeout=30
+        )
+        if resp.status_code == 200:
+            import base64
+            audio_b64 = base64.b64encode(resp.content).decode("utf-8")
+            return jsonify({"audio": audio_b64})
+        return jsonify({"error": "TTS недоступен"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ====== УВЕДОМЛЕНИЯ ======
+REMINDERS_FILE = "reminders.json"
+
+def load_reminders():
+    if os.path.exists(REMINDERS_FILE):
+        with open(REMINDERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def save_reminders(r):
+    with open(REMINDERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(r, f, ensure_ascii=False, indent=2)
+
+@app.route("/reminders", methods=["GET"])
+def get_reminders():
+    return jsonify(load_reminders())
+
+@app.route("/reminders", methods=["POST"])
+def add_reminder():
+    text = request.json.get("text", "").strip()
+    time_str = request.json.get("time", "").strip()
+    if not text:
+        return jsonify({"error": "Пустое напоминание"}), 400
+    reminders = load_reminders()
+    reminders.append({
+        "id": str(uuid.uuid4())[:8],
+        "text": text,
+        "time": time_str,
+        "created": datetime.now().isoformat(),
+        "done": False
+    })
+    save_reminders(reminders)
+    return jsonify({"status": "ok"})
+
+@app.route("/reminders/<rid>", methods=["DELETE"])
+def delete_reminder(rid):
+    reminders = [r for r in load_reminders() if r["id"] != rid]
+    save_reminders(reminders)
+    return jsonify({"status": "ok"})
+
+@app.route("/reminders/<rid>/done", methods=["POST"])
+def done_reminder(rid):
+    reminders = load_reminders()
+    for r in reminders:
+        if r["id"] == rid:
+            r["done"] = True
+    save_reminders(reminders)
+    return jsonify({"status": "ok"})
