@@ -3,14 +3,12 @@ from kivy.uix.widget import Widget
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.image import Image
-from kivy.graphics import Color, RoundedRectangle, Rectangle
+from kivy.graphics import Color, RoundedRectangle
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.animation import Animation
 import threading
-import os
 
-Window.clearcolor = (0.031, 0.027, 0.086, 1)  # #080816
+Window.clearcolor = (0.031, 0.027, 0.086, 1)
 
 def run_flask():
     from app import app
@@ -19,112 +17,97 @@ def run_flask():
 class SplashScreen(FloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.progress = 0
+        self._progress = 0
 
-        # Logo image
         self.logo = Image(
             source="icon.png",
             size_hint=(None, None),
-            size=(220, 220),
-            pos_hint={"center_x": 0.5, "center_y": 0.58}
+            size=(200, 200),
+            pos_hint={"center_x": 0.5, "center_y": 0.62}
         )
         self.add_widget(self.logo)
 
-        # App name
         self.title = Label(
             text="NeuroChat",
-            font_size="28sp",
+            font_size="30sp",
             bold=True,
             color=(0.78, 0.71, 0.99, 1),
-            pos_hint={"center_x": 0.5, "center_y": 0.38}
+            pos_hint={"center_x": 0.5, "center_y": 0.42}
         )
         self.add_widget(self.title)
 
-        # Subtitle
         self.subtitle = Label(
             text="AI Assistant",
             font_size="14sp",
             color=(0.4, 0.38, 0.6, 1),
-            pos_hint={"center_x": 0.5, "center_y": 0.33}
+            pos_hint={"center_x": 0.5, "center_y": 0.37}
         )
         self.add_widget(self.subtitle)
 
-        # Progress bar background
-        self.bar_bg = Widget(
-            size_hint=(None, None),
-            size=(260, 6),
-            pos_hint={"center_x": 0.5, "center_y": 0.22}
-        )
+        self.bar_bg = Widget(size_hint=(None, None), size=(1, 1))
         with self.bar_bg.canvas:
-            Color(0.15, 0.13, 0.25, 1)
-            self.bar_bg_rect = RoundedRectangle(
-                pos=self.bar_bg.pos,
-                size=self.bar_bg.size,
-                radius=[3]
-            )
-        self.bar_bg.bind(pos=self._update_bg, size=self._update_bg)
+            Color(0.12, 0.10, 0.22, 1)
+            self.bar_bg_rect = RoundedRectangle(size=(1,1), pos=(0,0), radius=[4])
         self.add_widget(self.bar_bg)
 
-        # Progress bar fill
-        self.bar_fill = Widget(
-            size_hint=(None, None),
-            size=(0, 6),
-            pos_hint={"center_x": 0.5, "center_y": 0.22}
-        )
+        self.bar_fill = Widget(size_hint=(None, None), size=(1, 1))
         with self.bar_fill.canvas:
             Color(0.6, 0.44, 0.98, 1)
-            self.bar_rect = RoundedRectangle(
-                pos=self.bar_fill.pos,
-                size=(0, 6),
-                radius=[2]
-            )
-        self.bar_fill.bind(pos=self._update_fill)
+            self.bar_rect = RoundedRectangle(size=(1,1), pos=(0,0), radius=[4])
         self.add_widget(self.bar_fill)
 
-        # Loading text
+        self.percent_label = Label(
+            text="0%",
+            font_size="12sp",
+            color=(0.6, 0.44, 0.98, 1),
+            pos_hint={"center_x": 0.5, "center_y": 0.245}
+        )
+        self.add_widget(self.percent_label)
+
         self.loading_label = Label(
             text="Загрузка...",
             font_size="12sp",
             color=(0.4, 0.38, 0.6, 1),
-            pos_hint={"center_x": 0.5, "center_y": 0.17}
+            pos_hint={"center_x": 0.5, "center_y": 0.20}
         )
         self.add_widget(self.loading_label)
 
-    def _update_bg(self, instance, value):
-        self.bar_bg_rect.pos = instance.pos
-        self.bar_bg_rect.size = instance.size
+        self.bind(size=self._redraw, pos=self._redraw)
+        Clock.schedule_once(self._redraw, 0)
 
-    def _update_fill(self, instance, value):
-        self.bar_rect.pos = instance.pos
+    def _redraw(self, *args):
+        W = Window.width
+        H = Window.height
+        bar_w = W * 0.80
+        bar_h = 7
+        bar_x = (W - bar_w) / 2
+        bar_y = H * 0.27
+
+        self.bar_bg_rect.pos = (bar_x, bar_y)
+        self.bar_bg_rect.size = (bar_w, bar_h)
+
+        fill_w = bar_w * self._progress / 100
+        self.bar_rect.pos = (bar_x, bar_y)
+        self.bar_rect.size = (max(fill_w, 0), bar_h)
 
     def set_progress(self, value, text="Загрузка..."):
-        self.progress = value
+        self._progress = value
         self.loading_label.text = text
-        max_width = Window.width * 0.75
-        new_width = max_width * value / 100
-        center_x = Window.width / 2
-        bar_x = center_x - max_width / 2
-        bar_y = Window.height * 0.22 - 2
-        # Обновляем фон бара тоже
-        self.bar_bg_rect.pos = (bar_x, bar_y)
-        self.bar_bg_rect.size = (max_width, 6)
-        self.bar_fill.pos = (bar_x, bar_y)
-        self.bar_rect.pos = (bar_x, bar_y)
-        self.bar_rect.size = (new_width, 6)
+        self.percent_label.text = f"{int(value)}%"
+        self._redraw()
 
 
 class NeuroChat(App):
     def build(self):
         self.splash = SplashScreen()
-        # Запускаем Flask в фоне
         threading.Thread(target=run_flask, daemon=True).start()
-        # Анимируем прогресс
-        Clock.schedule_once(lambda dt: self.splash.set_progress(15, "Запуск сервера..."), 0.3)
-        Clock.schedule_once(lambda dt: self.splash.set_progress(35, "Инициализация..."), 0.8)
-        Clock.schedule_once(lambda dt: self.splash.set_progress(60, "Загрузка данных..."), 1.5)
-        Clock.schedule_once(lambda dt: self.splash.set_progress(85, "Почти готово..."), 2.2)
+        Clock.schedule_once(lambda dt: self.splash.set_progress(10, "Запуск сервера..."), 0.2)
+        Clock.schedule_once(lambda dt: self.splash.set_progress(30, "Инициализация..."), 0.7)
+        Clock.schedule_once(lambda dt: self.splash.set_progress(55, "Загрузка данных..."), 1.3)
+        Clock.schedule_once(lambda dt: self.splash.set_progress(75, "Настройка UI..."), 1.9)
+        Clock.schedule_once(lambda dt: self.splash.set_progress(90, "Почти готово..."), 2.4)
         Clock.schedule_once(lambda dt: self.splash.set_progress(100, "Готово! ✓"), 2.8)
-        Clock.schedule_once(self.load_webview, 3.2)
+        Clock.schedule_once(self.load_webview, 3.3)
         return self.splash
 
     def load_webview(self, dt):
@@ -138,14 +121,12 @@ class NeuroChat(App):
                 WebView = autoclass("android.webkit.WebView")
                 WebViewClient = autoclass("android.webkit.WebViewClient")
                 activity = PythonActivity.mActivity
-
                 try:
                     context = activity.getApplicationContext()
                     appInfo = context.getApplicationInfo()
                     appInfo.flags = appInfo.flags | 0x08000000
                 except:
                     pass
-
                 wv = WebView(activity)
                 settings = wv.getSettings()
                 settings.setJavaScriptEnabled(True)
@@ -156,7 +137,6 @@ class NeuroChat(App):
                 wv.setWebViewClient(WebViewClient())
                 wv.loadUrl("http://127.0.0.1:5000")
                 activity.setContentView(wv)
-
             open_webview()
         except Exception as e:
             self.splash.loading_label.text = f"Ошибка: {str(e)}"
