@@ -526,3 +526,58 @@ def set_apikey():
         return jsonify({"error": "Неверный формат ключа Groq"}), 400
     save_api_key(key)
     return jsonify({"status": "ok"})
+
+import base64
+
+VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+@app.route("/chats/<chat_id>/image", methods=["POST"])
+def send_image(chat_id):
+    chat = load_chat(chat_id)
+    file = request.files.get("image")
+    text = request.form.get("message", "Что на этом изображении?")
+    if not file:
+        return jsonify({"error": "Изображение не найдено"}), 400
+    img_data = base64.b64encode(file.read()).decode("utf-8")
+    ext = file.filename.lower().split(".")[-1]
+    mime = "image/jpeg" if ext in ["jpg","jpeg"] else f"image/{ext}"
+    msg = {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": text},
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_data}"}}
+        ]
+    }
+    chat["messages"].append(msg)
+    if chat["title"] == "Новый чат":
+        chat["title"] = text[:30]
+    try:
+        resp = requests.post(GROQ_URL, headers={
+            "Authorization": f"Bearer {get_groq_key()}",
+            "Content-Type": "application/json"
+        }, json={"model": VISION_MODEL, "messages": chat["messages"], "max_tokens": 1024})
+        reply = resp.json()["choices"][0]["message"]["content"]
+        chat["messages"].append({"role": "assistant", "content": reply})
+        save_chat(chat)
+        return jsonify({"reply": reply, "title": chat["title"]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/voice", methods=["POST"])
+def voice_to_text():
+    """Принимаем аудио, отправляем в Groq Whisper"""
+    file = request.files.get("audio")
+    if not file:
+        return jsonify({"error": "Аудио не найдено"}), 400
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {get_groq_key()}"},
+            files={"file": (file.filename, file.read(), file.content_type)},
+            data={"model": "whisper-large-v3-turbo", "language": "ru"}
+        )
+        text = resp.json().get("text", "")
+        return jsonify({"text": text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

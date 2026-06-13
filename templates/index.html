@@ -327,7 +327,36 @@
 
     loadModels();
     loadChats();
-  </script>
+  
+  // ===== ФОТО =====
+  document.getElementById("img-input").addEventListener("change", async function() {
+    const file = this.files[0];
+    if (!file || !currentChat) return;
+    const question = prompt("Что спросить про фото?", "Что на этом изображении?");
+    if (question === null) return;
+    addMsg("user", "📷 " + file.name + (question ? ": " + question : ""));
+    showTyping();
+    const fd = new FormData();
+    fd.append("image", file);
+    fd.append("message", question || "Что на этом изображении?");
+    try {
+      const r = await fetch("/chats/" + currentChat + "/image", {method:"POST", body:fd});
+      const data = await r.json();
+      hideTyping();
+      if (data.reply) {
+        addMsg("assistant", data.reply);
+        if (data.title) updateChatTitle(currentChat, data.title);
+      } else {
+        addMsg("assistant", "❌ Ошибка: " + (data.error || "неизвестно"));
+      }
+    } catch(e) {
+      hideTyping();
+      addMsg("assistant", "❌ Ошибка сети");
+    }
+    this.value = "";
+  });
+
+</script>
 </body>
 </html>
 <style>
@@ -1958,16 +1987,50 @@ document.addEventListener("DOMContentLoaded", () => {
     return map[code] || "ru-RU";
   }
 
-  voiceBtn.onclick = () => {
-    if (isRecording) {
-      recognition.stop();
-      return;
+  voiceBtn.onclick = async () => {
+    if (voiceBtn.dataset.recording === "1") return;
+    voiceBtn.dataset.recording = "1";
+    voiceBtn.classList.add("recording");
+    voiceBtn.textContent = "⏹";
+    voiceStatus.textContent = "🎤 Запись... нажми ещё раз для остановки";
+    
+    let stream, recorder, chunks = [];
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        voiceStatus.textContent = "⏳ Распознаю...";
+        const blob = new Blob(chunks, {type: "audio/webm"});
+        const fd = new FormData();
+        fd.append("audio", blob, "voice.webm");
+        try {
+          const r = await fetch("/voice", {method:"POST", body:fd});
+          const data = await r.json();
+          if (data.text) {
+            document.getElementById("msg").value = data.text;
+            voiceStatus.textContent = "✅ Готово!";
+          } else {
+            voiceStatus.textContent = "❌ Не распознано";
+          }
+        } catch(e) {
+          voiceStatus.textContent = "❌ Ошибка сети";
+        }
+        voiceBtn.dataset.recording = "0";
+        voiceBtn.classList.remove("recording");
+        voiceBtn.textContent = "🎤";
+        setTimeout(() => voiceStatus.textContent = "", 2000);
+      };
+      recorder.start();
+      voiceBtn.onclick = () => recorder.stop();
+    } catch(e) {
+      voiceStatus.textContent = "❌ Нет доступа к микрофону";
+      voiceBtn.dataset.recording = "0";
+      voiceBtn.classList.remove("recording");
+      voiceBtn.textContent = "🎤";
     }
-    finalTranscript = "";
-    recognition.lang = getLang();
-    recognition.start();
   };
-
   recognition.onstart = () => {
     isRecording = true;
     voiceBtn.classList.add("recording");
