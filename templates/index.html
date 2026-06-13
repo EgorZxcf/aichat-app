@@ -269,6 +269,9 @@
     }
 
     async function send() {
+    const _pr = await fetch("/plugin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:input.value.trim()})});
+    const _pd = await _pr.json();
+    if (_pd.result) { const _m=input.value.trim(); input.value=""; addMsg("user",_m); addMsg("assistant",_pd.result); return; }
       if (!activeChatId) {
         const res = await fetch("/chats", { method: "POST" });
         const data = await res.json();
@@ -357,7 +360,7 @@
   });
 
 </script>
-<div id="msg-search-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-start;justify-content:center;padding-top:60px"><div style="background:#1a1a2e;border-radius:20px;padding:20px;width:92%;max-width:500px;max-height:75vh;display:flex;flex-direction:column;gap:12px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:16px;font-weight:700;color:#e8e8f0">🔍 Поиск по сообщениям</span><button onclick="document.getElementById('msg-search-modal').style.display='none'" style="background:none;border:none;color:#6b7280;font-size:22px;cursor:pointer">×</button></div><input id="msg-search-input" placeholder="Введи текст..." style="padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#e8e8f0;font-size:15px;outline:none;width:100%;box-sizing:border-box"/><div id="msg-search-results" style="overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div></div></div></body>
+<div id="msg-search-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-start;justify-content:center;padding-top:60px"><div style="background:#1a1a2e;border-radius:20px;padding:20px;width:92%;max-width:500px;max-height:75vh;display:flex;flex-direction:column;gap:12px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:16px;font-weight:700;color:#e8e8f0">🔍 Поиск по сообщениям</span><button onclick="document.getElementById('msg-search-modal').style.display='none'" style="background:none;border:none;color:#6b7280;font-size:22px;cursor:pointer">×</button></div><input id="msg-search-input" placeholder="Введи текст..." style="padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#e8e8f0;font-size:15px;outline:none;width:100%;box-sizing:border-box"/><div id="msg-search-results" style="overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div></div></div><div id="onboard" style="display:none;position:fixed;inset:0;background:#080816;z-index:998;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:32px"><img src="/static/icon.png" style="width:120px;height:120px;border-radius:28px;margin-bottom:8px"><h1 style="color:#e8e8f0;font-size:28px;font-weight:800;margin:0">NeuroChat</h1><p style="color:#6b7280;font-size:15px;margin:0;text-align:center">Умный AI ассистент в твоём кармане</p><div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin-top:16px"><div style="display:flex;align-items:center;gap:12px;padding:14px;background:rgba(99,102,241,0.1);border-radius:16px;border:1px solid rgba(99,102,241,0.2)"><span style="font-size:28px">🤖</span><div><div style="color:#e8e8f0;font-size:14px;font-weight:600">Умные модели</div><div style="color:#6b7280;font-size:12px">Llama, Mixtral, Gemma</div></div></div><div style="display:flex;align-items:center;gap:12px;padding:14px;background:rgba(99,102,241,0.1);border-radius:16px;border:1px solid rgba(99,102,241,0.2)"><span style="font-size:28px">🎤</span><div><div style="color:#e8e8f0;font-size:14px;font-weight:600">Голос и фото</div><div style="color:#6b7280;font-size:12px">Whisper + Vision AI</div></div></div><div style="display:flex;align-items:center;gap:12px;padding:14px;background:rgba(99,102,241,0.1);border-radius:16px;border:1px solid rgba(99,102,241,0.2)"><span style="font-size:28px">⚡</span><div><div style="color:#e8e8f0;font-size:14px;font-weight:600">Плагины</div><div style="color:#6b7280;font-size:12px">Погода, курсы, Wikipedia</div></div></div></div><button onclick="startApp()" style="width:100%;max-width:320px;padding:16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:18px;font-size:17px;font-weight:700;cursor:pointer;margin-top:8px">🚀 Начать</button><p style="color:#374151;font-size:11px;margin:0">NeuroChat v1.1</p></div></body>
 </html>
 <style>
 body.light { background: #f0f0f8; color: #1a1a2e; }
@@ -2179,5 +2182,16 @@ document.getElementById("msg-search-input").addEventListener("input", function()
         <div style="font-size:13px;color:#9ca3af">...${d.snippet}...</div>
       </div>`).join("");
   }, 300);
+});
+</script>
+<script>
+function startApp() {
+  localStorage.setItem("onboard_done", "1");
+  document.getElementById("onboard").style.display = "none";
+}
+document.addEventListener("DOMContentLoaded", () => {
+  if (!localStorage.getItem("onboard_done")) {
+    document.getElementById("onboard").style.display = "flex";
+  }
 });
 </script>
