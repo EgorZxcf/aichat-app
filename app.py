@@ -815,3 +815,138 @@ def done_reminder(rid):
             r["done"] = True
     save_reminders(reminders)
     return jsonify({"status": "ok"})
+
+# ====== УМНЫЙ АГЕНТ ======
+
+# 1. Автовызов плагинов без /
+def auto_detect_plugin(message):
+    """ИИ сам определяет нужен ли плагин"""
+    msg = message.lower()
+    # Погода
+    weather_words = ["погода", "температура", "дождь", "снег", "облачно", "ветер", "прогноз", "weather"]
+    for w in weather_words:
+        if w in msg:
+            # Ищем город
+            import re
+            cities = re.findall(r'в\s+([А-ЯЁа-яёA-Za-z]+(?:\s+[А-ЯЁа-яёA-Za-z]+)?)', message)
+            city = cities[0] if cities else "Москва"
+            return plugin_weather(city)
+    # Калькулятор
+    if any(w in msg for w in ["сколько будет", "посчитай", "вычисли", "сколько это"]):
+        import re
+        expr = re.findall(r'[\d+\-*/().,\s]+', message)
+        if expr:
+            return plugin_calc("".join(expr).strip())
+    # Время
+    if any(w in msg for w in ["который час", "сколько времени", "текущее время", "какое время"]):
+        return plugin_time()
+    # Курсы
+    if any(w in msg for w in ["курс доллара", "курс евро", "курс валют", "доллар сегодня", "евро сегодня"]):
+        return plugin_currency(msg)
+    # Wiki
+    if any(w in msg for w in ["кто такой", "кто такая", "что такое", "расскажи о", "расскажи про"]):
+        import re
+        match = re.search(r'(?:кто такой|кто такая|что такое|расскажи о|расскажи про)\s+(.+?)(?:\?|$)', msg)
+        if match:
+            return plugin_wiki(match.group(1).strip())
+    return None
+
+# 2. Выполнение кода
+@app.route("/execute", methods=["POST"])
+def execute_code():
+    code = request.json.get("code", "").strip()
+    lang = request.json.get("lang", "python").lower()
+    if not code:
+        return jsonify({"error": "Нет кода"}), 400
+    if len(code) > 2000:
+        return jsonify({"error": "Код слишком длинный (макс 2000 символов)"}), 400
+    
+    # Запрещённые операции
+    forbidden = ["import os", "import sys", "import subprocess", "open(", "__import__", 
+                 "exec(", "eval(", "shutil", "rmdir", "remove", "socket", "requests"]
+    for f in forbidden:
+        if f in code:
+            return jsonify({"error": f"❌ Запрещённая операция: {f}"}), 400
+    
+    if lang == "python":
+        import io, contextlib
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output):
+                exec(code, {"__builtins__": {
+                    "print": print, "range": range, "len": len, "int": int,
+                    "float": float, "str": str, "list": list, "dict": dict,
+                    "tuple": tuple, "set": set, "sum": sum, "min": min,
+                    "max": max, "abs": abs, "round": round, "sorted": sorted,
+                    "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
+                    "True": True, "False": False, "None": None
+                }})
+            result = output.getvalue() or "✅ Код выполнен (нет вывода)"
+            return jsonify({"result": result, "lang": lang})
+        except Exception as e:
+            return jsonify({"result": f"❌ Ошибка: {str(e)}", "lang": lang})
+    else:
+        return jsonify({"error": "Поддерживается только Python"}), 400
+
+# 3. Веб-браузинг
+@app.route("/browse", methods=["POST"])
+def browse_url():
+    url = request.json.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL не указан"}), 400
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    try:
+        import re
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        # Убираем HTML теги
+        text = re.sub(r'<script[^>]*>.*?</script>', '', r.text, flags=re.DOTALL)
+        text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        # Берём первые 2000 символов
+        summary = text[:2000]
+        return jsonify({"result": f"🌐 Содержимое {url}:\n\n{summary}...", "url": url})
+    except Exception as e:
+        return jsonify({"error": f"Не удалось открыть: {str(e)}"}), 500
+
+# 4. Работа с Excel
+@app.route("/excel", methods=["POST"])
+def process_excel():
+    file = request.files.get("file")
+    action = request.form.get("action", "read")
+    if not file:
+        return jsonify({"error": "Файл не найден"}), 400
+    try:
+        import io
+        data = file.read()
+        
+        # Читаем CSV или простой формат
+        if file.filename.endswith(".csv"):
+            import csv
+            reader = csv.reader(io.StringIO(data.decode("utf-8")))
+            rows = list(reader)
+            if not rows:
+                return jsonify({"error": "Файл пустой"}), 400
+            headers = rows[0]
+            result = f"📊 Таблица: {len(rows)-1} строк, {len(headers)} столбцов\n"
+            result += "Заголовки: " + ", ".join(headers) + "\n\n"
+            # Первые 10 строк
+            for row in rows[1:11]:
+                result += " | ".join(str(v) for v in row) + "\n"
+            if len(rows) > 11:
+                result += f"... и ещё {len(rows)-11} строк"
+            return jsonify({"result": result})
+        else:
+            return jsonify({"error": "Поддерживается только CSV. Конвертируй Excel в CSV."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Обновляем check_plugins для автодетекции
+_orig_check_plugins = check_plugins
+def check_plugins(message):
+    result = _orig_check_plugins(message)
+    if result:
+        return result
+    # Автодетекция
+    return auto_detect_plugin(message)

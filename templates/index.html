@@ -173,14 +173,14 @@
       const wrap = document.createElement("div");
       const bubble = document.createElement("div");
       bubble.className = "msg-bubble";
-      if (role === "bot") { bubble.innerHTML = marked.parse(text); } else { bubble.textContent = text; }
+      if (role === "assistant") { bubble.innerHTML = marked.parse(text); } else { bubble.textContent = text; }
       const footer = document.createElement("div");
       footer.className = "msg-footer";
       const time = document.createElement("div");
       time.className = "msg-time";
       time.textContent = now();
       footer.appendChild(time);
-      if (role === "bot") {
+      if (role === "assistant") {
         const copyBtn = document.createElement("button");
         copyBtn.className = "copy-btn";
         copyBtn.textContent = "📋 копировать";
@@ -291,6 +291,24 @@
     const _pr = await fetch("/plugin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:input.value.trim()})});
     const _pd = await _pr.json();
     if (_pd.result) { const _m=input.value.trim(); input.value=""; addMsg("user",_m); addMsg("assistant",_pd.result); return; }
+    // Браузер
+    if (input.value.trim().toLowerCase().startsWith("/браузер ")) {
+      const _url = input.value.trim().split(" ").slice(1).join(" ");
+      const _m = input.value.trim(); input.value="";
+      addMsg("user", _m); showTyping();
+      const _br = await fetch("/browse",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:_url})});
+      const _bd = await _br.json(); hideTyping();
+      addMsg("assistant", _bd.result || "❌ " + _bd.error); return;
+    }
+    // Выполнение кода
+    if (input.value.trim().toLowerCase().startsWith("/код ")) {
+      const _code = input.value.trim().substring(5);
+      const _m = input.value.trim(); input.value="";
+      addMsg("user", _m); showTyping();
+      const _er = await fetch("/execute",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:_code,lang:"python"})});
+      const _ed = await _er.json(); hideTyping();
+      addMsg("assistant", "```\n" + (_ed.result || "❌ " + _ed.error) + "\n```"); return;
+    }
       if (!activeChatId) {
         const res = await fetch("/chats", { method: "POST" });
         const data = await res.json();
@@ -1144,6 +1162,8 @@ const COMMANDS = [
   { name: "/время",     desc: "Текущее время",            template: "/время" },
   { name: "/поиск",    desc: "Поиск в интернете",        template: "/поиск " },
   { name: "/напомни",  desc: "Создать напоминание",      template: "/напомни в 18:00 " },
+  { name: "/браузер",  desc: "Открыть сайт",              template: "/браузер https://" },
+  { name: "/код",      desc: "Выполнить Python код",      template: "/код print(2+2)" },
 ];
 
 let cmdIndex = -1;
