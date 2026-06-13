@@ -52,7 +52,7 @@ class SplashScreen(FloatLayout):
         # Progress bar background
         self.bar_bg = Widget(
             size_hint=(None, None),
-            size=(260, 4),
+            size=(260, 6),
             pos_hint={"center_x": 0.5, "center_y": 0.22}
         )
         with self.bar_bg.canvas:
@@ -60,7 +60,7 @@ class SplashScreen(FloatLayout):
             self.bar_bg_rect = RoundedRectangle(
                 pos=self.bar_bg.pos,
                 size=self.bar_bg.size,
-                radius=[2]
+                radius=[3]
             )
         self.bar_bg.bind(pos=self._update_bg, size=self._update_bg)
         self.add_widget(self.bar_bg)
@@ -68,14 +68,14 @@ class SplashScreen(FloatLayout):
         # Progress bar fill
         self.bar_fill = Widget(
             size_hint=(None, None),
-            size=(0, 4),
+            size=(0, 6),
             pos_hint={"center_x": 0.5, "center_y": 0.22}
         )
         with self.bar_fill.canvas:
             Color(0.6, 0.44, 0.98, 1)
             self.bar_rect = RoundedRectangle(
                 pos=self.bar_fill.pos,
-                size=(0, 4),
+                size=(0, 6),
                 radius=[2]
             )
         self.bar_fill.bind(pos=self._update_fill)
@@ -100,16 +100,17 @@ class SplashScreen(FloatLayout):
     def set_progress(self, value, text="Загрузка..."):
         self.progress = value
         self.loading_label.text = text
-        # Обновляем ширину бара
-        max_width = 260
+        max_width = Window.width * 0.75
         new_width = max_width * value / 100
-        # Позиция бара (центр минус половина полной ширины)
         center_x = Window.width / 2
         bar_x = center_x - max_width / 2
         bar_y = Window.height * 0.22 - 2
+        # Обновляем фон бара тоже
+        self.bar_bg_rect.pos = (bar_x, bar_y)
+        self.bar_bg_rect.size = (max_width, 6)
         self.bar_fill.pos = (bar_x, bar_y)
         self.bar_rect.pos = (bar_x, bar_y)
-        self.bar_rect.size = (new_width, 4)
+        self.bar_rect.size = (new_width, 6)
 
 
 class NeuroChat(App):
