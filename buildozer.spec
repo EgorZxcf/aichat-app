@@ -14,6 +14,7 @@ android.ndk = 25b
 android.archs = arm64-v8a
 android.allow_backup = True
 android.network_security_config = res/xml/network_security_config.xml
+android.manifest = templates/AndroidManifest.tmpl.xml
 fullscreen = 0
 
 p4a.branch = master

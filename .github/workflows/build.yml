@@ -50,44 +50,17 @@ jobs:
         echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
         echo "ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
 
-    - name: Cache Buildozer
-      uses: actions/cache@v4
-      with:
-        path: ~/.buildozer
-        key: buildozer-linux
-
     - name: Build APK
       run: |
-        pip install --upgrade buildozer cython==3.0.11
-        rm -rf .buildozer/android/platform/build-*/dists
         yes | buildozer android debug 2>&1 | tee /tmp/build.log
-        # Патчим манифест напрямую
-        MANIFEST=$(find .buildozer -name "AndroidManifest.xml" | grep "dists" | head -1)
-        if [ -f "$MANIFEST" ]; then
-          sed -i 's|<application|<application android:usesCleartextTraffic="true"|g' "$MANIFEST"
-          echo "Patched: $MANIFEST"
-          cat "$MANIFEST"
-        fi
-        # Пересобираем только APK без полной компиляции
-        cd .buildozer/android/platform/build-arm64-v8a/dists/neurochat
-        ./gradlew assembleDebug 2>&1 | tail -20
-        # Копируем пересобранный APK в bin/
-        mkdir -p bin
-        find .buildozer -name "*.apk" -path "*/outputs/*" | xargs -I{} cp {} bin/ 2>/dev/null || true
-        find .buildozer -name "*debug*.apk" | xargs -I{} cp {} bin/ 2>/dev/null || true
-        ls -la bin/
-        cd $GITHUB_WORKSPACE
-        echo "=== Searching APK ==="
-        find / -name "*.apk" -not -path "*/android-sdk/*" 2>/dev/null || echo "No APK found"
-        echo "=== bin dir ==="
+        echo "=== Check manifest in APK ==="
+        find . -name "*.apk" | head -3
         ls -la bin/ 2>/dev/null || echo "No bin dir"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: neurochat-apk
-        path: |
-          bin/*.apk
-          .buildozer/**/*.apk
-        if-no-files-found: warn
+        path: bin/*.apk
+        if-no-files-found: error
         retention-days: 30
