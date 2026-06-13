@@ -581,3 +581,100 @@ def voice_to_text():
         return jsonify({"text": text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/search", methods=["GET"])
+def search_messages():
+    q = request.args.get("q", "").strip().lower()
+    if not q or len(q) < 2:
+        return jsonify([])
+    results = []
+    for fname in os.listdir(CHATS_DIR):
+        if not fname.endswith(".json"):
+            continue
+        with open(os.path.join(CHATS_DIR, fname), "r", encoding="utf-8") as f:
+            chat = json.load(f)
+        for msg in chat["messages"]:
+            if msg["role"] == "system":
+                continue
+            if q in msg["content"].lower():
+                idx = msg["content"].lower().find(q)
+                snippet = msg["content"][max(0,idx-40):idx+80]
+                results.append({
+                    "chat_id": chat["id"],
+                    "chat_title": chat["title"],
+                    "role": msg["role"],
+                    "snippet": snippet
+                })
+    return jsonify(results[:30])
+
+# ====== ПЛАГИНЫ / АГЕНТ ======
+import re as _re
+
+def plugin_calc(expr):
+    try:
+        result = eval(_re.sub(r'[^0-9+\-*/().,\s]','',expr))
+        return f"🧮 Результат: **{result}**"
+    except:
+        return "❌ Ошибка вычисления"
+
+def plugin_weather(city):
+    try:
+        r = requests.get(f"https://wttr.in/{city}?format=3&lang=ru", timeout=5)
+        return f"🌤 {r.text.strip()}"
+    except:
+        return "❌ Не удалось получить погоду"
+
+def plugin_currency(text):
+    try:
+        r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=5)
+        rates = r.json()["rates"]
+        result = []
+        pairs = [("USD","RUB"),("EUR","RUB"),("USD","EUR"),("BTC","USD")]
+        for a,b in pairs:
+            if a in rates and b in rates:
+                rate = rates[b]/rates[a]
+                result.append(f"**{a}→{b}**: {rate:.2f}")
+        return "💱 Курсы валют:\n" + "\n".join(result)
+    except:
+        return "❌ Не удалось получить курсы"
+
+def plugin_wiki(query):
+    try:
+        r = requests.get(
+            "https://ru.wikipedia.org/api/rest_v1/page/summary/" + requests.utils.quote(query),
+            timeout=5
+        )
+        data = r.json()
+        title = data.get("title","")
+        extract = data.get("extract","")[:500]
+        return f"📖 **{title}**\n{extract}..."
+    except:
+        return "❌ Не нашёл в Wikipedia"
+
+def plugin_time():
+    from datetime import datetime
+    now = datetime.now()
+    return f"🕐 Сейчас: **{now.strftime('%d.%m.%Y %H:%M')}**"
+
+def check_plugins(message):
+    msg = message.lower().strip()
+    if msg.startswith("/погода "):
+        return plugin_weather(message[8:].strip())
+    if msg.startswith("/курс") or msg.startswith("/валюта"):
+        return plugin_currency(msg)
+    if msg.startswith("/считай ") or msg.startswith("/calc "):
+        expr = message.split(" ",1)[1]
+        return plugin_calc(expr)
+    if msg.startswith("/wiki ") or msg.startswith("/вики "):
+        return plugin_wiki(message.split(" ",1)[1])
+    if msg in ["/время", "/time"]:
+        return plugin_time()
+    return None
+
+@app.route("/plugin", methods=["POST"])
+def run_plugin():
+    message = request.json.get("message","").strip()
+    result = check_plugins(message)
+    if result:
+        return jsonify({"result": result})
+    return jsonify({"result": None})

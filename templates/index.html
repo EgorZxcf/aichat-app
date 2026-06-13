@@ -96,7 +96,7 @@
   <div id="overlay"></div>
   <div id="sidebar">
     <div id="sidebar-header">
-      <button id="new-chat-btn">✏️ Новый чат</button>
+      <div style="display:flex;gap:8px"><button id="new-chat-btn" style="flex:1">✏️ Новый чат</button><button onclick="openMsgSearch()" style="padding:11px 14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;color:#9ca3af;cursor:pointer;font-size:16px">🔎</button></div>
       <select id="model-select"></select>
       <div id="model-badge">загрузка...</div>
       <input id="search-input" type="text" placeholder="🔍 Поиск по чатам..." />
@@ -357,7 +357,7 @@
   });
 
 </script>
-</body>
+<div id="msg-search-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-start;justify-content:center;padding-top:60px"><div style="background:#1a1a2e;border-radius:20px;padding:20px;width:92%;max-width:500px;max-height:75vh;display:flex;flex-direction:column;gap:12px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:16px;font-weight:700;color:#e8e8f0">🔍 Поиск по сообщениям</span><button onclick="document.getElementById('msg-search-modal').style.display='none'" style="background:none;border:none;color:#6b7280;font-size:22px;cursor:pointer">×</button></div><input id="msg-search-input" placeholder="Введи текст..." style="padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#e8e8f0;font-size:15px;outline:none;width:100%;box-sizing:border-box"/><div id="msg-search-results" style="overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div></div></div></body>
 </html>
 <style>
 body.light { background: #f0f0f8; color: #1a1a2e; }
@@ -1077,6 +1077,11 @@ const COMMANDS = [
   { name: "/вопросы",   desc: "Задай вопросы по теме",  template: "Задай 5 вопросов по теме: " },
   { name: "/плюсминус", desc: "Плюсы и минусы",        template: "Перечисли плюсы и минусы: " },
   { name: "/шаги",      desc: "Пошаговый план",         template: "Составь пошаговый план для: " },
+  { name: "/погода",    desc: "Погода в городе",          template: "/погода Москва" },
+  { name: "/курс",      desc: "Курсы валют",              template: "/курс" },
+  { name: "/считай",    desc: "Калькулятор",              template: "/считай " },
+  { name: "/wiki",      desc: "Поиск в Wikipedia",        template: "/wiki " },
+  { name: "/время",     desc: "Текущее время",            template: "/время" },
 ];
 
 let cmdIndex = -1;
@@ -2149,5 +2154,30 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   footer.appendChild(btn);
   checkApiKey();
+});
+</script>
+<script>
+function openMsgSearch() {
+  const m = document.getElementById("msg-search-modal");
+  m.style.display = "flex";
+  setTimeout(() => document.getElementById("msg-search-input").focus(), 100);
+}
+let st;
+document.getElementById("msg-search-input").addEventListener("input", function() {
+  clearTimeout(st);
+  const q = this.value.trim();
+  const res = document.getElementById("msg-search-results");
+  if (q.length < 2) { res.innerHTML = ""; return; }
+  st = setTimeout(async () => {
+    const r = await fetch("/search?q=" + encodeURIComponent(q));
+    const data = await r.json();
+    if (!data.length) { res.innerHTML = '<p style="color:#6b7280;text-align:center">Ничего не найдено</p>'; return; }
+    res.innerHTML = data.map(d => `
+      <div onclick="openChat('${d.chat_id}');document.getElementById('msg-search-modal').style.display='none'"
+           style="padding:12px;background:rgba(255,255,255,0.05);border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,0.06)">
+        <div style="font-size:11px;color:#6366f1;margin-bottom:4px;font-weight:600">${d.chat_title} • ${d.role === 'user' ? 'Вы' : 'Бот'}</div>
+        <div style="font-size:13px;color:#9ca3af">...${d.snippet}...</div>
+      </div>`).join("");
+  }, 300);
 });
 </script>
