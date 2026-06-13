@@ -15,13 +15,14 @@
         android:icon="@drawable/icon"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:allowBackup="{{ 'true' if args.allow_backup else 'false' }}">
+        android:allowBackup="true">
 
         <activity
             android:name="org.kivy.android.PythonActivity"
             android:label="{{ args.title }}"
             android:screenOrientation="{{ args.orientation }}"
-            android:configChanges="keyboardHidden|orientation|screenSize">
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
