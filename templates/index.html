@@ -219,6 +219,7 @@
       time.textContent = now();
       footer.appendChild(time);
       if (role === "assistant") {
+        // Кнопка копировать
         const copyBtn = document.createElement("button");
         copyBtn.className = "copy-btn";
         copyBtn.textContent = "📋 копировать";
@@ -230,7 +231,8 @@
           });
         };
         footer.appendChild(copyBtn);
-      if (role === "assistant") {
+
+        // Кнопка TTS
         const ttsBtn = document.createElement("button");
         ttsBtn.textContent = "🔊";
         ttsBtn.title = "Озвучить";
@@ -238,7 +240,7 @@
         ttsBtn.onclick = async () => {
           ttsBtn.textContent = "⏳";
           try {
-            const r = await fetch("/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:content.replace(/[#*`]/g,"").substring(0,500)})});
+            const r = await fetch("/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:text.replace(/[#*`]/g,"").substring(0,500)})});
             const d = await r.json();
             if (d.audio) {
               const audio = new Audio("data:audio/mp3;base64,"+d.audio);
@@ -248,7 +250,7 @@
           } catch(e) { ttsBtn.textContent = "❌"; }
         };
         footer.appendChild(ttsBtn);
-      }
+
         if (modelName) {
           const modelEl = document.createElement("div");
           modelEl.className = "msg-model";
